@@ -14,5 +14,5 @@ After obtaining the video frames from the step 1, the images can be converted to
 - a simple ML method: faster, lower quality;
 - a more powerful DL method*: slower, higher quality.
   
-As the DL methods, we use two different models. The first one is a pretrained semantic segmentation model called [U2Net semantic segmentation model](https://github.com/xuebinqin/U-2-Net).
+As the DL models, we use two different networks. The first one is a pretrained semantic segmentation model called [U2Net](https://github.com/xuebinqin/U-2-Net).
 And the other one is a pretrained GAN model called [Facial Colorization](https://github.com/SystemErrorWang/FacialCartoonization).
