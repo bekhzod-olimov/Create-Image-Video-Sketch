@@ -2,14 +2,14 @@ import os, cv2, torch, numpy as np
 from glob import glob
 from tqdm import tqdm
 from torch.autograd import Variable
-from model import U2NET, normPRED
+from models import SimpleGenerator, U2NET, normPRED
 
 class VideoMaker():
     
-    def __init__(self, video_path, frame_save_path, sketch_save_path, device, checkpoint, video_save_path, save_name):
+    def __init__(self, video_path, frame_save_path, sketch_save_path, device, video_save_path, model_name, save_name):
         
-        self.video_path, self.frame_save_path, self.sketch_save_path= video_path, frame_save_path, sketch_save_path
-        self.device, self.checkpoint, self.video_save_path, self.save_name = device, checkpoint, video_save_path, save_name
+        self.video_path, self.frame_save_path, self.sketch_save_path, self.device = video_path, frame_save_path, sketch_save_path, device
+        self.video_save_path, self.model_name, self.save_name = video_save_path, model_name, save_name
         
     def get_video_frames(self):
 
@@ -33,7 +33,113 @@ class VideoMaker():
 
             print(f"Total number of frames -> {count}")
 
+    def get_model(self):
+        
+        if self.model_name == "u2":
+            
+            checkpoint = "saved_models/u2net_portrait/u2net_portrait.pth"
+            model = U2NET(3,1)
+            state_dict = {}
+            torch_dict_sk = torch.load(checkpoint, map_location='cpu')
+            for key in torch_dict_sk:
+                if key.startswith('module'):
+                    state_dict[key[7:]] = torch_dict_sk[key]
+                else:
+                    state_dict[key] = torch_dict_sk[key]
 
+            model.load_state_dict(state_dict)
+            model.eval().to(self.device)
+            
+        elif self.model_name == "cartoon":
+            
+            checkpoint = "saved_models/weight.pth"
+            weight = torch.load(checkpoint, map_location = 'cpu')
+            model = SimpleGenerator()
+            model.load_state_dict(weight)
+            model.eval()
+        
+        return model
+    
+    def get_images(self, path):
+        
+        im_files = glob(f"{path}/*.jpg")
+        im_files.sort(key = os.path.getctime)
+        
+        return im_files
+    
+    def preprocess_im(self, im_file):
+        
+        if self.model_name == "u2":
+        
+            im = cv2.imread(im_file)
+
+            image = np.zeros((im.shape[0],im.shape[1],3))
+
+            im = im/np.max(im)
+
+            image[:,:,0] = (im[:,:,2]-0.406)/0.225
+            image[:,:,1] = (im[:,:,1]-0.456)/0.224
+            image[:,:,2] = (im[:,:,0]-0.485)/0.229
+
+            # convert BGR to RGB
+            image = image.transpose((2, 0, 1))
+            image = image[np.newaxis,:,:,:]
+            image = torch.from_numpy(image)
+
+            # convert numpy array to torch tensor
+            image = image.type(torch.FloatTensor)
+            image = Variable(image.to(self.device))
+        
+
+        elif self.model_name == "cartoon":
+            
+            im = cv2.imread(im_file)
+            image = im/127.5 - 1
+            image = image.transpose(2, 0, 1)
+            image = torch.tensor(image).unsqueeze(0)
+
+        return image
+    
+    def get_sketch_im(self, model, im):
+        
+        if self.model_name == "u2":
+            
+            pred1,_,_,_,_,_,_ = model(im)
+
+            # normalsization
+            pred = 1.0 - pred1[:,0,:,:]
+            pred = normPRED(pred)
+
+            # convert torch tensor to numpy array
+            pred = pred.squeeze()
+            pred = pred.cpu().data.numpy()
+
+            img = (pred*255).astype(np.uint8)
+            #대비 조정
+            a = 1
+            factor = 1.0 - a*0.1
+            avg = np.mean(img) / 2.0
+            avg = 255*0.5
+
+            dim = 255/(255*factor - avg)
+            img = img*factor - avg #306 - 200 = 106
+
+            img[img < 0] = 0
+            img[img > 255] = 255
+            img *= dim
+            output = img.astype(np.uint8)
+
+        elif self.model_name == "cartoon":
+        
+            output = model(im.float())
+            output = output.squeeze(0).detach().numpy()
+            output = output.transpose(1, 2, 0)
+            output = (output + 1) * 127.5
+            output = np.clip(output, 0, 255).astype(np.uint8)
+
+        return output
+        
+    
     def get_sketches(self):
 
         if os.path.isdir(self.sketch_save_path): print("Sketch images are already obtained! Skipping this step..."); pass
@@ -41,91 +147,35 @@ class VideoMaker():
             # Create directory to save images
             os.makedirs(self.sketch_save_path, exist_ok = True)
 
-            net = U2NET(3,1)
-            state_dict = {}
-            torch_dict_sk = torch.load(self.checkpoint, map_location='cpu')
-            for key in torch_dict_sk:
-                if key.startswith('module'):
-                    state_dict[key[7:]] = torch_dict_sk[key]
-                else:
-                    state_dict[key] = torch_dict_sk[key]
-
-            net.load_state_dict(state_dict)
-            net.eval().to(self.device)
-
+            # Get model
+            model = self.get_model() 
             # Get image files
-            im_files = glob(f"{self.frame_save_path}/*.jpg")
-            im_files.sort(key = os.path.getctime)
+            im_files = self.get_images(self.frame_save_path)
 
             print("Converting images to sketches...")
             for idx, im_file in tqdm(enumerate(im_files)):
-                # input = cv2.cvtColor(cv2.imread(im_file), cv2.COLOR_BGR2GRAY)
-                input = cv2.imread(im_file)
+                
+                # Get an image
+                im = self.preprocess_im(im_file)
 
-                tmpImg = np.zeros((input.shape[0],input.shape[1],3))
-
-                input = input/np.max(input)
-
-                tmpImg[:,:,0] = (input[:,:,2]-0.406)/0.225
-                tmpImg[:,:,1] = (input[:,:,1]-0.456)/0.224
-                tmpImg[:,:,2] = (input[:,:,0]-0.485)/0.229
-
-                # convert BGR to RGB
-                tmpImg = tmpImg.transpose((2, 0, 1))
-                tmpImg = tmpImg[np.newaxis,:,:,:]
-                tmpImg = torch.from_numpy(tmpImg)
-
-                # convert numpy array to torch tensor
-                tmpImg = tmpImg.type(torch.FloatTensor)
-                tmpImg = tmpImg.to(self.device)
-            #     if torch.cuda.is_available():
-            #         tmpImg = Variable(tmpImg.cuda())
-            #     else:
-                tmpImg = Variable(tmpImg)
-
-                # inference
-                d1,d2,d3,d4,d5,d6,d7= net(tmpImg)
-
-                # normalization
-                pred = 1.0 - d1[:,0,:,:]
-                pred = normPRED(pred)
-
-                # convert torch tensor to numpy array
-                pred = pred.squeeze()
-                pred = pred.cpu().data.numpy()
-
-                del d1,d2,d3,d4,d5,d6,d7
-
-                img = (pred*255).astype(np.uint8)
-                #대비 조정
-                a = 1
-                factor = 1.0 - a*0.1
-                avg = np.mean(img) / 2.0
-                avg = 255*0.5
-
-                dim = 255/(255*factor - avg)
-                img = img*factor - avg #306 - 200 = 106
-
-                img[img < 0] = 0
-                img[img > 255] = 255
-                img *= dim
-                dst = img.astype(np.uint8)
+                # Get a sketch
+                sketch = self.get_sketch_im(model, im)
 
                 # Save the file to the folder
-                cv2.imwrite(f"{self.sketch_save_path}/{os.path.basename(im_file)}", dst)
+                cv2.imwrite(f"{self.sketch_save_path}/{os.path.basename(im_file)}", sketch)
 
             print("Sketches are obtained!")
-
+            
     def create_video(self):
 
         os.makedirs(self.video_save_path, exist_ok = True)
 
         ims_array = []
-        files = glob(f"{self.sketch_save_path}/*.jpg")
-        files.sort(key = os.path.getctime)
+        
+        im_files = self.get_images(self.sketch_save_path)
 
         print("Creating video from the sketch frames...")
-        for idx, filename in tqdm(enumerate(files)):
+        for idx, filename in tqdm(enumerate(im_files)):
             im = cv2.imread(filename)
             height, width, layers = im.shape
             ims_array.append(im) 
