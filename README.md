@@ -1,8 +1,8 @@
-# Video2Sketch
+# Video2SketchCartoon
 
-This repository contains on converting video to sketch videos. It has three main steps:
+This repository contains information on converting video to sketch/cartoon videos. It has three main steps:
 1. Obtain frames from the input video;
-2. Convert the frames to sketches;
+2. Convert the frames to sketches/cartoons;
 3. Create video using the sketch frames.
 
 ### * Obtain frames from the input video
@@ -14,7 +14,7 @@ The video frames can be obtained using the [get_video_frames function](https://g
 ![frame120](https://github.com/bekhzod-olimov/Create-Image-Video-Sketch/assets/50166164/1e3bc0a7-edbc-4737-944a-dfa5e5b22115)
 
 
-### * Convert the frames to sketches
+### * Convert the frames to sketches/cartoons
 After obtaining the video frames from the step 1, the images can be converted to sketches. This process can be done using two methods:
 
 - a simple ML method: faster, lower quality;
