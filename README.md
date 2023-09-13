@@ -23,7 +23,7 @@ After obtaining the video frames from the step 1, the images can be converted to
 As the DL models, we use two different networks. The first one is a pretrained semantic segmentation model called [U2Net](https://github.com/xuebinqin/U-2-Net) to get sketches.
 And the other one is a pretrained GAN model called [Facial Colorization](https://github.com/SystemErrorWang/FacialCartoonization) to get cartoon-like images.
 
-##### Sketch samples using U2Net:
+##### Sketch/cartoon samples using U2Net:
 
 ![frame10](https://github.com/bekhzod-olimov/Create-Image-Video-Sketch/assets/50166164/143cfba4-7d0a-44ce-9880-756bc5f015ea)
 ![frame133](https://github.com/bekhzod-olimov/Create-Image-Video-Sketch/assets/50166164/c28d4764-de9a-47de-b11d-63aa9eb4ccbd)
