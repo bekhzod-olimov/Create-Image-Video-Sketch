@@ -15,13 +15,13 @@ The video frames can be obtained using the [get_video_frames function](https://g
 
 
 ### * Convert the frames to sketches/cartoons
-After obtaining the video frames from the step 1, the images can be converted to sketches. This process can be done using two methods:
+After obtaining the video frames from the step 1, the images can be converted to sketches/cartoons. This process can be done using two methods:
 
 - a simple ML method: faster, lower quality;
-- a more powerful DL method*: slower, higher quality.
+- a more powerful DL methods*: slower, higher quality.
   
-As the DL models, we use two different networks. The first one is a pretrained semantic segmentation model called [U2Net](https://github.com/xuebinqin/U-2-Net).
-And the other one is a pretrained GAN model called [Facial Colorization](https://github.com/SystemErrorWang/FacialCartoonization).
+As the DL models, we use two different networks. The first one is a pretrained semantic segmentation model called [U2Net](https://github.com/xuebinqin/U-2-Net) to get sketches.
+And the other one is a pretrained GAN model called [Facial Colorization](https://github.com/SystemErrorWang/FacialCartoonization) to get cartoon-like images.
 
 ##### Sketch samples using U2Net:
 
